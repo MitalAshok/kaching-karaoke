@@ -3,8 +3,8 @@ import time
 
 IS_EMULATION = False
 TEXT_SIZE_MULTIPLIER = 2
-LYRIC_FILE = ...
-MUSIC_FILE = ...
+MUSIC_FILE = "./lyrics/Rick Astley - Never Gonna Give You Up (Official Music Video).mp4"
+LYRIC_FILE = "./lyrics/Rick-Astley-Never-Gonna-Give-You-Up.lrc"
 
 
 WIDTH_LIMIT = 32 // TEXT_SIZE_MULTIPLIER
@@ -13,7 +13,8 @@ assert TEXT_SIZE_MULTIPLIER in (0, 1, 2, 3, 4, 5, 6, 7, 8), 'Invalid text size'
 
 if __name__ == '__main__':
     with open(LYRIC_FILE) as f:
-        assert f.read(1) == '\ufeff', 'Unexpected header'
+        #assert f.read(1) == '\ufeff', 'Unexpected header'
+        f.read(3)
         raw_lines = f.read()
     raw_lines = raw_lines.split('\n')
 
@@ -72,11 +73,13 @@ if __name__ == '__main__':
             f.write(bytearray([0x1D, 0x21, 0x11 * (TEXT_SIZE_MULTIPLIER - 1)]))
             f.flush()
         def tprint(line):
-            with open('LTP1:', 'wb') as f:
+            with open('LPT1:', 'wb') as f:
                 f.write(line.encode('ascii') + b'\n')
                 f.flush()
 
-    subprocess.run(('explorer.exe', MUSIC_FILE))
+    subprocess.Popen([r'C:\Program Files (x86)\VideoLAN\VLC\vlc.exe', MUSIC_FILE])
+    #import os
+    #os.system(f'explorer.exe "{MUSIC_FILE}"')
     #time.sleep(0.4)
     start = time.time()
 
