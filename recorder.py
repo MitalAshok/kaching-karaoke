@@ -10,9 +10,13 @@ import numpy as np
 import math
 import time
 from scipy.signal.windows import hann
-from librosa import hz_to_note
+from librosa import hz_to_note, hz_to_midi
+from globalstate import pitchshifter_ready, pitchshiftby
+from midi_parser import time_list, notes_list
 
-duration = 60  # seconds
+start_time = time.time()
+
+duration = 180  # seconds
 Fs = 48000
 block_size = 4096
 
@@ -64,13 +68,15 @@ def detect_main_notes(data):
     main_notes = np.zeros(3)
 
     for i in range(num_axes):
-        max_amp_bin = np.argmax(np.abs(data_freq[min_note_bin:max_note_bin])) + min_note_bin
+        max_amp_bin = np.argmax(
+            np.abs(data_freq[min_note_bin:max_note_bin])) + min_note_bin
         if np.abs(data_freq[max_amp_bin]) <= thresh:
             main_notes[i] = 0
         else:
             # Perform fine interpolation
-            peak_data = data_freq[max_amp_bin-2:max_amp_bin+3] # 5 points
-            coeff = np.polyfit(np.arange(max_amp_bin-2, max_amp_bin+3), peak_data, 2)
+            peak_data = data_freq[max_amp_bin-2:max_amp_bin+3]  # 5 points
+            coeff = np.polyfit(
+                np.arange(max_amp_bin-2, max_amp_bin+3), peak_data, 2)
             true_peak = -np.real(coeff[1]/(2 * coeff[0]))
             print(f"Coarse peak: {max_amp_bin}, true peak: {true_peak}")
 
@@ -85,10 +91,7 @@ def detect_main_notes(data):
     return np.array(main_notes)
 
 
-def callback(indata, outdata, frames, time, status):
-    global pos
-    global x_dir
-
+def callback(indata, outdata, frames, time_s, status):
     if status:
         print(status)
 
@@ -103,14 +106,37 @@ def callback(indata, outdata, frames, time, status):
     main_note = main_notes[0]
     if main_note > 0:
         print(hz_to_note(main_note))
+        global pitchshifter_ready
+        #while not pitchshifter_ready:
+            #print("gonna sleep")
+        #    time.sleep(0.01)
+        compare_note = 0
+        print("comparing soon")
+        for i in range(len(time_list)):
+            time_elapsed = time.time() - start_time
+            if time_elapsed > time_list[i]:
+                compare_note = notes_list[i]
+                break
+        if compare_note == 0:
+            shiftby = 0
+        else:
+            shiftby = compare_note - hz_to_midi(main_note)
+        global pitchshiftby
+        pitchshiftby = shiftby
+        print("shift by", shiftby)
     else:
         print("OOPS")
 
 
-start_time = time.time()
-while time.time() - start_time < 60*1:
+def recorder_stream():
     with sd.Stream(samplerate=Fs, blocksize=block_size, latency="low", channels=1, callback=callback) as S:
         sd.sleep(int(duration * 1000))
 
+    print('done')
 
-print('done')
+import os
+from pathlib import Path
+if not os.path.isfile("tired.txt"):
+    Path("tired.txt").touch()
+
+recorder_stream()
